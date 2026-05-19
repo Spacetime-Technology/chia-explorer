@@ -124,9 +124,25 @@ describe('coin tools (mocked RPC)', () => {
     expect(body.coin_count).toBe(2);
     expect(mocks.get_coin_records_by_puzzle_hash).toHaveBeenCalledWith(expect.anything(), {
       puzzle_hash: PUZZLE_HASH,
-      start_height: 0,
-      end_height: 0xffffffff,
       include_spent_coins: true,
+    });
+  });
+
+  it('get_coin_records_by_puzzle_hash forwards start_height and end_height when supplied', async () => {
+    mocks.get_coin_records_by_puzzle_hash.mockResolvedValue({ coin_records: [] });
+    await client.callTool({
+      name: 'get_coin_records_by_puzzle_hash',
+      arguments: {
+        address_or_puzzle_hash: MAINNET_ADDRESS,
+        start_height: 1000,
+        end_height: 2000,
+      },
+    });
+    expect(mocks.get_coin_records_by_puzzle_hash).toHaveBeenCalledWith(expect.anything(), {
+      puzzle_hash: PUZZLE_HASH,
+      include_spent_coins: false,
+      start_height: 1000,
+      end_height: 2000,
     });
   });
 

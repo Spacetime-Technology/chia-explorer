@@ -39,6 +39,14 @@ describe('bech32m address <-> puzzle hash', () => {
     expect(() => addressToPuzzleHash('xch1notavalidaddress')).toThrow();
   });
 
+  it('decodes the known mainnet address xch1nsxjau8...j7xuuv to its expected puzzle hash', () => {
+    const address = 'xch1nsxjau8ktcus23e89vz49kt7w3y4wx8s9q6np939c4g6gphpvj5qj7xuuv';
+    const expected = '9c0d2ef0f65e390547272b0552d97e74495718f02835309625c551a406e164a8';
+    const decoded = addressToPuzzleHash(address);
+    expect(decoded.puzzleHash).toBe(expected);
+    expect(decoded.network).toBe('mainnet');
+  });
+
   it('looksLikeAddress recognises xch and txch prefixes only', () => {
     expect(looksLikeAddress(puzzleHashToAddress(PUZZLE_HASH, 'mainnet'))).toBe(true);
     expect(looksLikeAddress(puzzleHashToAddress(PUZZLE_HASH, 'testnet11'))).toBe(true);
