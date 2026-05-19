@@ -75,18 +75,20 @@ const PARENT_IDS_BATCH = 200;
 export async function fetchCoinRecordsByParentIds(
   agent: RPCAgent,
   parentIds: readonly string[],
-  options: { includeSpent?: boolean } = {}
+  options: { includeSpent?: boolean; startHeight?: number; endHeight?: number } = {}
 ): Promise<CoinRecordLike[]> {
   if (parentIds.length === 0) return [];
   const includeSpent = options.includeSpent ?? true;
   const all: CoinRecordLike[] = [];
   for (let i = 0; i < parentIds.length; i += PARENT_IDS_BATCH) {
     const batch = parentIds.slice(i, i + PARENT_IDS_BATCH);
-    const payload: ParentIdsRequest = {
+    const payload: Partial<ParentIdsRequest> = {
       parent_ids: batch,
       include_spent_coins: includeSpent,
     };
-    const res = await get_coin_records_by_parent_ids(agent, payload);
+    if (options.startHeight !== undefined) payload.start_height = options.startHeight;
+    if (options.endHeight !== undefined) payload.end_height = options.endHeight;
+    const res = await get_coin_records_by_parent_ids(agent, payload as ParentIdsRequest);
     const records = (res.coin_records ?? []) as CoinRecordLike[];
     all.push(...records);
   }

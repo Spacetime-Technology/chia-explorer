@@ -171,4 +171,63 @@ describe('blockchain tools (mocked RPC)', () => {
     })) as { isError?: boolean };
     expect(res.isError).toBe(true);
   });
+
+  it('get_block_additions_and_removals resolves height to header_hash then returns coin lists', async () => {
+    mocks.get_block_record_by_height.mockResolvedValue({
+      block_record: { height: 500, header_hash: 'd'.repeat(64), timestamp: 1 },
+    });
+    mocks.get_additions_and_removals.mockResolvedValue({
+      additions: [{ coin: { amount: 1n } }, { coin: { amount: 2n } }],
+      removals: [{ coin: { amount: 3n } }],
+    });
+    const res = await client.callTool({
+      name: 'get_block_additions_and_removals',
+      arguments: { height: 500 },
+    });
+    const body = parseToolText(res) as {
+      height: number | null;
+      header_hash: string;
+      additions_count: number;
+      removals_count: number;
+      additions: unknown[];
+      removals: unknown[];
+    };
+    expect(body.height).toBe(500);
+    expect(body.header_hash).toBe('d'.repeat(64));
+    expect(body.additions_count).toBe(2);
+    expect(body.removals_count).toBe(1);
+    expect(body.additions).toHaveLength(2);
+    expect(body.removals).toHaveLength(1);
+    expect(mocks.get_additions_and_removals).toHaveBeenCalledWith(expect.anything(), {
+      header_hash: 'd'.repeat(64),
+    });
+  });
+
+  it('get_block_additions_and_removals accepts header_hash directly without resolving height', async () => {
+    mocks.get_additions_and_removals.mockResolvedValue({ additions: [], removals: [] });
+    await client.callTool({
+      name: 'get_block_additions_and_removals',
+      arguments: { header_hash: '0x' + 'e'.repeat(64) },
+    });
+    expect(mocks.get_block_record_by_height).not.toHaveBeenCalled();
+    expect(mocks.get_additions_and_removals).toHaveBeenCalledWith(expect.anything(), {
+      header_hash: 'e'.repeat(64),
+    });
+  });
+
+  it('get_block_additions_and_removals rejects when neither height nor header_hash supplied', async () => {
+    const res = (await client.callTool({
+      name: 'get_block_additions_and_removals',
+      arguments: {},
+    })) as { isError?: boolean };
+    expect(res.isError).toBe(true);
+  });
+
+  it('get_block_additions_and_removals rejects when both height and header_hash are supplied', async () => {
+    const res = (await client.callTool({
+      name: 'get_block_additions_and_removals',
+      arguments: { height: 1, header_hash: 'f'.repeat(64) },
+    })) as { isError?: boolean };
+    expect(res.isError).toBe(true);
+  });
 });

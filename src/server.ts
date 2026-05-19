@@ -7,11 +7,14 @@ import { register as registerGetPeakHeight } from './tools/blockchain/get-peak-h
 import { register as registerGetBlockByHeight } from './tools/blockchain/get-block-by-height.js';
 import { register as registerGetBlockByHash } from './tools/blockchain/get-block-by-hash.js';
 import { register as registerCountBlockTransactions } from './tools/blockchain/count-block-transactions.js';
+import { register as registerGetBlockAdditionsAndRemovals } from './tools/blockchain/get-block-additions-and-removals.js';
 
 import { register as registerGetBalance } from './tools/coins/get-balance.js';
 import { register as registerGetCoinRecordsByPuzzleHash } from './tools/coins/get-coin-records-by-puzzle-hash.js';
+import { register as registerGetCoinRecordsByParentIds } from './tools/coins/get-coin-records-by-parent-ids.js';
 import { register as registerGetCoinByName } from './tools/coins/get-coin-by-name.js';
 import { register as registerCalculateCoinName } from './tools/coins/calculate-coin-name.js';
+import { register as registerGetPuzzleAndSolution } from './tools/coins/get-puzzle-and-solution.js';
 
 import { register as registerAddressToPuzzleHash } from './tools/addresses/address-to-puzzle-hash.js';
 import { register as registerPuzzleHashToAddress } from './tools/addresses/puzzle-hash-to-address.js';
@@ -48,11 +51,14 @@ export function createServer(): McpServer {
   registerGetBlockByHeight(server);
   registerGetBlockByHash(server);
   registerCountBlockTransactions(server);
+  registerGetBlockAdditionsAndRemovals(server);
 
   registerGetBalance(server);
   registerGetCoinRecordsByPuzzleHash(server);
+  registerGetCoinRecordsByParentIds(server);
   registerGetCoinByName(server);
   registerCalculateCoinName(server);
+  registerGetPuzzleAndSolution(server);
 
   registerAddressToPuzzleHash(server);
   registerPuzzleHashToAddress(server);
