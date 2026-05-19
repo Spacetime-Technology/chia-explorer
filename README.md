@@ -168,6 +168,28 @@ Drop these into a chat once the server is wired up.
 
 > What's the coin name for parent `0xaaa...`, puzzle hash `0xbbb...`, amount 1000000000000?
 
+## Pre-built workflows: chia-skills
+
+[**chia-skills**](https://github.com/Spacetime-Technology/chia-skills) is a companion package of Claude Code skills built on top of this MCP. It turns the read-only tools below into finished workflows you can actually schedule and get notified about: deposit alerts, price triggers, offer safety checks, NFT provenance, invoice watching.
+
+```bash
+npx chia-skills install
+```
+
+What's in the box:
+
+- `watch-address` — push notification when XCH, a CAT, or an NFT lands at (or leaves) an address
+- `watch-tx-confirmation` — ping when a specific tx_id moves from mempool to confirmed
+- `watch-xch-price` — alert when XCH crosses a threshold in any CoinGecko currency
+- `watch-fee-market` — catch cheap fee windows to broadcast
+- `watch-prefarm-spend` — flag new strategic-reserve outflows with destinations labelled
+- `address-daily-digest` — daily summary of one or more addresses with USD values
+- `offer-safety-check` — decode an `offer1...` and check both sides against market prices
+- `coin-lineage` / `nft-provenance` — walk coin or NFT history N hops in either direction
+- `invoice-watch` — generate an invoice, watch for the matching deposit, emit a paid receipt
+
+Skills are read-only and idempotent, persist state between runs, and accept structured inputs so other skills or agents can chain them. If you want to see what's possible with chia-explorer beyond ad-hoc prompts, start there. If you want to write your own, the skills repo is the reference.
+
 ## Tools
 
 | Tool | What it does |
