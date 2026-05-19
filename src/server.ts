@@ -26,6 +26,14 @@ import { register as registerGetPrefarmStatus } from './tools/prefarm/get-prefar
 import { register as registerGetPrefarmSpends } from './tools/prefarm/get-prefarm-spends.js';
 import { register as registerListPrefarmAddresses } from './tools/prefarm/list-prefarm-addresses.js';
 
+import { register as registerDecodeOffer } from './tools/offers/decode-offer.js';
+import { register as registerDecodeSpendBundle } from './tools/offers/decode-spend-bundle.js';
+import { register as registerDecompilePuzzle } from './tools/offers/decompile-puzzle.js';
+
+import { register as registerGetMempool } from './tools/mempool/get-mempool.js';
+import { register as registerIsInMempool } from './tools/mempool/is-in-mempool.js';
+import { register as registerEstimateFee } from './tools/mempool/estimate-fee.js';
+
 import { register as registerNetworkStatusPrompt } from './prompts/network-status.js';
 import { register as registerAddressSummaryPrompt } from './prompts/address-summary.js';
 import { register as registerBlockSummaryPrompt } from './prompts/block-summary.js';
@@ -69,6 +77,14 @@ export function createServer(): McpServer {
   registerGetPrefarmStatus(server);
   registerGetPrefarmSpends(server);
   registerListPrefarmAddresses(server);
+
+  registerDecodeOffer(server);
+  registerDecodeSpendBundle(server);
+  registerDecompilePuzzle(server);
+
+  registerGetMempool(server);
+  registerIsInMempool(server);
+  registerEstimateFee(server);
 
   registerNetworkStatusPrompt(server);
   registerAddressSummaryPrompt(server);

@@ -212,12 +212,14 @@ describe('coin tools (mocked RPC)', () => {
     expect(secondCall.parent_ids).toHaveLength(50);
   });
 
-  it('get_puzzle_and_solution returns the coin solution', async () => {
+  it('get_puzzle_and_solution returns the coin solution plus classification and parsed conditions', async () => {
     const coinId = 'c'.repeat(64);
+    // Use a real puzzle/solution pair the SDK can classify: nil reveal + nil solution.
+    // Classifier should call it 'unknown' (no settlement match, no CAT/NFT/DID).
     mocks.get_puzzle_and_solution.mockResolvedValue({
       coin_solution: {
         coin: { parent_coin_info: '0'.repeat(64), puzzle_hash: PUZZLE_HASH, amount: 1n },
-        puzzle_reveal: '0xff01ff02',
+        puzzle_reveal: '0x80',
         solution: '0x80',
       },
     });
@@ -229,15 +231,42 @@ describe('coin tools (mocked RPC)', () => {
       coin_id: string;
       height: number;
       coin_solution: { puzzle_reveal: string; solution: string };
+      classification: { kind: string; puzzle_hash: string; is_settlement: boolean };
+      parsed_conditions?: { create_coins: unknown[] };
     };
     expect(body.coin_id).toBe(coinId);
     expect(body.height).toBe(12345);
-    expect(body.coin_solution.puzzle_reveal).toBe('0xff01ff02');
+    expect(body.coin_solution.puzzle_reveal).toBe('0x80');
     expect(body.coin_solution.solution).toBe('0x80');
+    expect(body.classification.kind).toBe('unknown');
+    expect(body.classification.is_settlement).toBe(false);
     expect(mocks.get_puzzle_and_solution).toHaveBeenCalledWith(expect.anything(), {
       coin_id: coinId,
       height: 12345,
     });
+  });
+
+  it('get_puzzle_and_solution classifies a settlement-payments coin as xch + is_settlement', async () => {
+    const coinId = 'a'.repeat(64);
+    // settlement-payments puzzle hex (canonical bytes from the SDK Constants).
+    const SETTLEMENT_HEX =
+      '0xff02ffff01ff02ff0affff04ff02ffff04ff03ff80808080ffff04ffff01ffff333effff02ffff03ff05ffff01ff04ffff04ff0cffff04ffff02ff1effff04ff02ffff04ff09ff80808080ff808080ffff02ff16ffff04ff02ffff04ff19ffff04ffff02ff0affff04ff02ffff04ff0dff80808080ff808080808080ff8080ff0180ffff02ffff03ff05ffff01ff02ffff03ffff15ff29ff8080ffff01ff04ffff04ff08ff0980ffff02ff16ffff04ff02ffff04ff0dffff04ff0bff808080808080ffff01ff088080ff0180ffff010b80ff0180ff02ffff03ffff07ff0580ffff01ff0bffff0102ffff02ff1effff04ff02ffff04ff09ff80808080ffff02ff1effff04ff02ffff04ff0dff8080808080ffff01ff0bffff0101ff058080ff0180ff018080';
+    mocks.get_puzzle_and_solution.mockResolvedValue({
+      coin_solution: {
+        coin: { parent_coin_info: '0'.repeat(64), puzzle_hash: PUZZLE_HASH, amount: 0n },
+        puzzle_reveal: SETTLEMENT_HEX,
+        solution: '0x80',
+      },
+    });
+    const res = await client.callTool({
+      name: 'get_puzzle_and_solution',
+      arguments: { coin_id: coinId, height: 1 },
+    });
+    const body = parseToolText(res) as {
+      classification: { kind: string; is_settlement: boolean };
+    };
+    expect(body.classification.kind).toBe('xch');
+    expect(body.classification.is_settlement).toBe(true);
   });
 
   it('get_coin_by_name surfaces XCH amount when present', async () => {

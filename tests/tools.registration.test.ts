@@ -23,6 +23,12 @@ const EXPECTED_TOOLS = [
   'get_prefarm_status',
   'get_prefarm_spends',
   'list_prefarm_addresses',
+  'decode_offer',
+  'decode_spend_bundle',
+  'decompile_puzzle',
+  'get_mempool',
+  'is_in_mempool',
+  'estimate_fee',
 ];
 
 describe('tool registration', () => {
