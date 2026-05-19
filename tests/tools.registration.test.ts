@@ -17,6 +17,9 @@ const EXPECTED_TOOLS = [
   'puzzle_hash_to_address',
   'get_xch_price',
   'convert_xch_to_fiat',
+  'get_prefarm_status',
+  'get_prefarm_spends',
+  'list_prefarm_addresses',
 ];
 
 describe('tool registration', () => {

@@ -65,4 +65,12 @@ describe('prompt content', () => {
     expect(text).toContain('get_block_by_hash');
     expect(text).toContain('deadbeef');
   });
+
+  it('prefarm_summary references the three prefarm tools', async () => {
+    const res = await client.getPrompt({ name: 'prefarm_summary', arguments: {} });
+    const text = promptText(res.messages);
+    expect(text).toContain('get_prefarm_status');
+    expect(text).toContain('get_prefarm_spends');
+    expect(text).toContain('21M XCH');
+  });
 });

@@ -19,9 +19,14 @@ import { register as registerPuzzleHashToAddress } from './tools/addresses/puzzl
 import { register as registerGetXchPrice } from './tools/price/get-xch-price.js';
 import { register as registerConvertXchToFiat } from './tools/price/convert-xch-to-fiat.js';
 
+import { register as registerGetPrefarmStatus } from './tools/prefarm/get-prefarm-status.js';
+import { register as registerGetPrefarmSpends } from './tools/prefarm/get-prefarm-spends.js';
+import { register as registerListPrefarmAddresses } from './tools/prefarm/list-prefarm-addresses.js';
+
 import { register as registerNetworkStatusPrompt } from './prompts/network-status.js';
 import { register as registerAddressSummaryPrompt } from './prompts/address-summary.js';
 import { register as registerBlockSummaryPrompt } from './prompts/block-summary.js';
+import { register as registerPrefarmSummaryPrompt } from './prompts/prefarm-summary.js';
 
 export function createServer(): McpServer {
   const server = new McpServer(
@@ -55,9 +60,14 @@ export function createServer(): McpServer {
   registerGetXchPrice(server);
   registerConvertXchToFiat(server);
 
+  registerGetPrefarmStatus(server);
+  registerGetPrefarmSpends(server);
+  registerListPrefarmAddresses(server);
+
   registerNetworkStatusPrompt(server);
   registerAddressSummaryPrompt(server);
   registerBlockSummaryPrompt(server);
+  registerPrefarmSummaryPrompt(server);
 
   return server;
 }
