@@ -16,6 +16,9 @@ import { register as registerCalculateCoinName } from './tools/coins/calculate-c
 import { register as registerAddressToPuzzleHash } from './tools/addresses/address-to-puzzle-hash.js';
 import { register as registerPuzzleHashToAddress } from './tools/addresses/puzzle-hash-to-address.js';
 
+import { register as registerGetXchPrice } from './tools/price/get-xch-price.js';
+import { register as registerConvertXchToFiat } from './tools/price/convert-xch-to-fiat.js';
+
 import { register as registerNetworkStatusPrompt } from './prompts/network-status.js';
 import { register as registerAddressSummaryPrompt } from './prompts/address-summary.js';
 import { register as registerBlockSummaryPrompt } from './prompts/block-summary.js';
@@ -25,10 +28,12 @@ export function createServer(): McpServer {
     { name: 'chia-explorer', version: VERSION },
     {
       instructions:
-        'chia-explorer answers questions about the Chia blockchain via the public coinset.org API. ' +
+        'chia-explorer answers questions about the Chia blockchain via the public coinset.org API, ' +
+        'plus XCH spot price and fiat conversion via the public CoinGecko API. ' +
         'Read-only: no signing, no key material, no push_tx. ' +
-        "All tools accept an optional `network: 'mainnet' | 'testnet11'` argument; mainnet is the default. " +
-        'When an address is provided, the network is auto-detected from the prefix (xch / txch).',
+        "Blockchain tools accept an optional `network: 'mainnet' | 'testnet11'` argument; mainnet is the default. " +
+        'When an address is provided, the network is auto-detected from the prefix (xch / txch). ' +
+        'Price tools take no network argument.',
     }
   );
 
@@ -46,6 +51,9 @@ export function createServer(): McpServer {
 
   registerAddressToPuzzleHash(server);
   registerPuzzleHashToAddress(server);
+
+  registerGetXchPrice(server);
+  registerConvertXchToFiat(server);
 
   registerNetworkStatusPrompt(server);
   registerAddressSummaryPrompt(server);

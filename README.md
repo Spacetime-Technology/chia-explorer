@@ -11,6 +11,7 @@ Backed by the public [coinset.org](https://www.coinset.org) full-node API. Suppo
 - What is the balance of `xch1...` (or `txch1...`, or a raw puzzle hash)?
 - Look up a coin by name. Calculate a coin name from its fields.
 - Convert between addresses and puzzle hashes in either direction.
+- What is XCH worth in USD (or EUR, GBP, BTC, ...) right now? What's this balance worth?
 
 ## Install
 
@@ -61,8 +62,14 @@ Add to your `claude_desktop_config.json`:
 | `calculate_coin_name` | sha256(parent_coin_info \|\| puzzle_hash \|\| amount) — no RPC |
 | `address_to_puzzle_hash` | bech32m decode — no RPC |
 | `puzzle_hash_to_address` | bech32m encode — no RPC |
+| `get_xch_price` | Current XCH spot price in one or more currencies (CoinGecko) |
+| `convert_xch_to_fiat` | Convert a mojo amount to fiat using the current XCH price |
 
-All tools take an optional `network: "mainnet" | "testnet11"` (default `mainnet`).
+Blockchain tools take an optional `network: "mainnet" | "testnet11"` (default `mainnet`). The price tools don't take a network arg.
+
+## Optional config
+
+- `COINGECKO_API_KEY` — if set, sent as `x-cg-demo-api-key` to lift the free-tier rate limit. The price tools work without it.
 
 ## Prompts
 

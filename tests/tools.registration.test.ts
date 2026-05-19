@@ -15,6 +15,8 @@ const EXPECTED_TOOLS = [
   'calculate_coin_name',
   'address_to_puzzle_hash',
   'puzzle_hash_to_address',
+  'get_xch_price',
+  'convert_xch_to_fiat',
 ];
 
 describe('tool registration', () => {
