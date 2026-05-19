@@ -20,25 +20,31 @@ Backed by the public [coinset.org](https://www.coinset.org) full-node API for ch
 
 ## Install
 
-```bash
-npm install -g chia-explorer
-```
-
-Or run via `npx`:
+The server is a single npm package. No global install needed — every config below uses `npx` so it stays up to date.
 
 ```bash
 npx chia-explorer
 ```
 
-## Use with Claude Code
+If you want it on your PATH:
+
+```bash
+npm install -g chia-explorer
+```
+
+Requires Node.js 20+.
+
+## Use it with your AI client
+
+### Claude Code
 
 ```bash
 claude mcp add chia-explorer -- npx chia-explorer
 ```
 
-## Use with Claude Desktop
+### Claude Desktop
 
-Add to your `claude_desktop_config.json`:
+Edit `claude_desktop_config.json` (Settings → Developer → Edit Config):
 
 ```json
 {
@@ -50,6 +56,117 @@ Add to your `claude_desktop_config.json`:
   }
 }
 ```
+
+Restart Claude Desktop.
+
+### Cursor
+
+Create or edit `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` inside a project:
+
+```json
+{
+  "mcpServers": {
+    "chia-explorer": {
+      "command": "npx",
+      "args": ["chia-explorer"]
+    }
+  }
+}
+```
+
+Restart Cursor and enable the server under Settings → MCP.
+
+### Codex CLI
+
+Edit `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.chia-explorer]
+command = "npx"
+args = ["chia-explorer"]
+```
+
+### VS Code (native MCP)
+
+Create `.vscode/mcp.json` in your workspace:
+
+```json
+{
+  "servers": {
+    "chia-explorer": {
+      "command": "npx",
+      "args": ["chia-explorer"]
+    }
+  }
+}
+```
+
+### Windsurf
+
+Edit `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "chia-explorer": {
+      "command": "npx",
+      "args": ["chia-explorer"]
+    }
+  }
+}
+```
+
+### Anything else that speaks MCP
+
+It's a standard stdio MCP server. The recipe is always the same: `command = npx`, `args = ["chia-explorer"]`. Set `COINGECKO_API_KEY` as an env var if you have one.
+
+## Example prompts
+
+Drop these into a chat once the server is wired up.
+
+**Offers**
+
+> Decode this offer and tell me what's being traded: `offer1qqr83wcuu2rykcmqvpsxgfgqmqys...`
+
+> I just got sent this `offer1...` string in Discord. Is it safe to take? What do I give and what do I get?
+
+**Smart-coin inspection**
+
+> What kind of coin is `0xabc...123`? Pull its puzzle reveal at height 6500000 and tell me if it's a CAT, NFT, DID, or plain XCH.
+
+> Walk the children of coin `0xabc...` for two hops. Classify each child.
+
+**Mempool and fees**
+
+> Is `0xdeadbeef...` (my tx) currently in the mempool?
+
+> How many transactions are pending right now? What does the fee market look like for inclusion in the next minute?
+
+> What fee should I attach to a take_offer spend to get included in the next 5 minutes?
+
+**Balances and pricing**
+
+> What's the XCH balance of `xch1yxqsmyuyjdlgxw4sqjg4vqlqv5ms2qzex00586nu643jqemmarwslh08yl`? How much is that in USD and EUR right now?
+
+> Convert 1.5 XCH to GBP, EUR, BTC, and SAT.
+
+**Chain state**
+
+> What block was Chia at one hour ago — height, header hash, transaction count?
+
+> Is the network synced? What's the current netspace in EiB?
+
+**Strategic reserve**
+
+> How much of the 21M XCH strategic reserve has been spent? Where did the most recent five outflows go — partners, market makers, or exchanges?
+
+> Show me every spend from the Swiss cold wallet, with the destination labelled.
+
+**Identifier glue**
+
+> Convert this puzzle hash to a mainnet address: `4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a`.
+
+> What's the coin name for parent `0xaaa...`, puzzle hash `0xbbb...`, amount 1000000000000?
 
 ## Tools
 
