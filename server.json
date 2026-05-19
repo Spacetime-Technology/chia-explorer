@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Spacetime-Technology/chia-explorer",
+  "description": "MCP server for the Chia blockchain. Read-only Q&A via the public coinset.org API.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/Spacetime-Technology/chia-explorer",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "chia-explorer",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

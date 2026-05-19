@@ -1,0 +1,75 @@
+{
+  "name": "chia-explorer",
+  "version": "0.1.0",
+  "description": "MCP server that answers questions about the Chia blockchain via the public coinset.org API",
+  "mcpName": "io.github.Spacetime-Technology/chia-explorer",
+  "type": "module",
+  "license": "MIT",
+  "author": "Spacetime Technology",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "chia",
+    "blockchain",
+    "coinset",
+    "xch",
+    "claude",
+    "claude-desktop"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Spacetime-Technology/chia-explorer.git"
+  },
+  "homepage": "https://github.com/Spacetime-Technology/chia-explorer#readme",
+  "bugs": {
+    "url": "https://github.com/Spacetime-Technology/chia-explorer/issues"
+  },
+  "bin": {
+    "chia-explorer": "./dist/index.js"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "prepare": "husky",
+    "preversion": "bash scripts/prerelease.sh",
+    "version": "node scripts/sync-server-json.js && git add server.json",
+    "postversion": "git push --follow-tags origin main",
+    "prepublishOnly": "npm run build",
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/index.js",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests",
+    "format": "prettier --write src tests",
+    "format:check": "prettier --check src tests"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@scure/base": "^1.1.9",
+    "chia-agent": "^14.3.1",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.3",
+    "@typescript-eslint/parser": "^8.59.3",
+    "eslint": "^10.4.0",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "prettier": "^3.8.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.59.3",
+    "vitest": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

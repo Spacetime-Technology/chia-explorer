@@ -1,0 +1,44 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { createTestClient } from './helpers/create-test-client.js';
+
+const EXPECTED_TOOLS = [
+  'get_blockchain_state',
+  'get_netspace',
+  'get_peak_height',
+  'get_block_by_height',
+  'get_block_by_hash',
+  'count_block_transactions',
+  'get_balance',
+  'get_coin_records_by_puzzle_hash',
+  'get_coin_by_name',
+  'calculate_coin_name',
+  'address_to_puzzle_hash',
+  'puzzle_hash_to_address',
+];
+
+describe('tool registration', () => {
+  let client: Client;
+  let cleanup: () => Promise<void>;
+
+  beforeAll(async () => {
+    ({ client, cleanup } = await createTestClient());
+  });
+
+  afterAll(async () => {
+    await cleanup();
+  });
+
+  it('registers every expected tool', async () => {
+    const { tools } = await client.listTools();
+    const names = tools.map((t) => t.name).sort();
+    expect(names).toEqual([...EXPECTED_TOOLS].sort());
+  });
+
+  it('every tool has a non-empty description', async () => {
+    const { tools } = await client.listTools();
+    for (const t of tools) {
+      expect(t.description, `tool ${t.name} has empty description`).toBeTruthy();
+    }
+  });
+});
