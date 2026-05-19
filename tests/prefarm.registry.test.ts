@@ -20,27 +20,31 @@ describe('prefarm registry', () => {
     expect(TOTAL_PREFARM_ALLOCATION_MOJO).toBe(21_000_000n * MOJOS_PER_XCH);
   });
 
-  it('populated wallet addresses round-trip to their puzzle hash on mainnet', () => {
+  it('every populated wallet address round-trips to a matching mainnet puzzle hash', () => {
     for (const w of PREFARM_WALLETS) {
       if (!isPopulated(w)) continue;
-      const decoded = addressToPuzzleHash(w.address);
-      expect(decoded.network).toBe('mainnet');
-      expect(decoded.puzzleHash).toBe(w.puzzleHash);
+      expect(w.addresses.length).toBe(w.puzzleHashes.length);
+      w.addresses.forEach((addr, i) => {
+        const decoded = addressToPuzzleHash(addr);
+        expect(decoded.network).toBe('mainnet');
+        expect(decoded.puzzleHash).toBe(w.puzzleHashes[i]);
+      });
     }
   });
 
-  it('unpopulated wallets have null address and puzzleHash together', () => {
+  it('unpopulated wallets have empty puzzleHashes', () => {
     for (const w of PREFARM_WALLETS) {
-      if (w.address === null) expect(w.puzzleHash).toBeNull();
-      if (w.puzzleHash === null) expect(w.address).toBeNull();
+      if (w.addresses.length === 0) expect(w.puzzleHashes.length).toBe(0);
     }
   });
 
-  it('lookupPrefarmWallet finds populated wallets by puzzle hash', () => {
+  it('lookupPrefarmWallet finds every populated wallet via every one of its puzzle hashes', () => {
     for (const w of PREFARM_WALLETS) {
       if (!isPopulated(w)) continue;
-      expect(lookupPrefarmWallet(w.puzzleHash)?.id).toBe(w.id);
-      expect(lookupPrefarmWallet(w.puzzleHash.toUpperCase())?.id).toBe(w.id);
+      for (const ph of w.puzzleHashes) {
+        expect(lookupPrefarmWallet(ph)?.id).toBe(w.id);
+        expect(lookupPrefarmWallet(ph.toUpperCase())?.id).toBe(w.id);
+      }
     }
   });
 

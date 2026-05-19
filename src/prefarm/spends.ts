@@ -88,10 +88,18 @@ export async function getWalletSpends(
   options: { sinceHeight?: number } = {}
 ): Promise<PrefarmSpend[]> {
   if (!isPopulated(wallet)) return [];
-  const records = await fetchCoinRecordsByPuzzleHash(agent, wallet.puzzleHash, {
-    includeSpent: true,
-    ...(options.sinceHeight !== undefined ? { startHeight: options.sinceHeight } : {}),
-  });
+
+  const ownPuzzleHashes = new Set(wallet.puzzleHashes.map((ph) => ph.toLowerCase()));
+
+  const recordGroups = await Promise.all(
+    wallet.puzzleHashes.map((ph) =>
+      fetchCoinRecordsByPuzzleHash(agent, ph, {
+        includeSpent: true,
+        ...(options.sinceHeight !== undefined ? { startHeight: options.sinceHeight } : {}),
+      })
+    )
+  );
+  const records = recordGroups.flat();
   const spent = records.filter((r) => r.spent_block_index > 0);
   if (spent.length === 0) return [];
 
@@ -110,15 +118,25 @@ export async function getWalletSpends(
   });
   const childrenByParent = new Map<string, CoinRecordLike[]>();
   for (const child of children) {
-    const list = childrenByParent.get(child.coin.parent_coin_info) ?? [];
+    const key = child.coin.parent_coin_info.toLowerCase().replace(/^0x/, '');
+    const list = childrenByParent.get(key) ?? [];
     list.push(child);
-    childrenByParent.set(child.coin.parent_coin_info, list);
+    childrenByParent.set(key, list);
   }
 
   const out: PrefarmSpend[] = [];
   for (const [parentName, parent] of parentByName) {
     const childCoins = childrenByParent.get(parentName) ?? [];
-    const destinations: DestinationOutflow[] = childCoins.map((c) => {
+    // Filter out children that land back on one of *this* wallet's own puzzle hashes:
+    // those are singleton bookkeeping (e.g. the singleton recreating itself, or
+    // moving between a wallet's primary p2 and its clawback intermediate). Children
+    // landing on a different prefarm wallet are real inter-custody rotations.
+    const meaningful = childCoins.filter((c) => {
+      const ph = c.coin.puzzle_hash.toLowerCase().replace(/^0x/, '');
+      return !ownPuzzleHashes.has(ph);
+    });
+    if (meaningful.length === 0) continue;
+    const destinations: DestinationOutflow[] = meaningful.map((c) => {
       const ph = c.coin.puzzle_hash.toLowerCase().replace(/^0x/, '');
       const addr = puzzleHashToAddress(ph, 'mainnet');
       return labelDestination(ph, addr, toBigInt(c.coin.amount));
@@ -126,10 +144,11 @@ export async function getWalletSpends(
     const outflow = destinations
       .filter((d) => d.category !== 'internal-rotation')
       .reduce((acc, d) => acc + BigInt(d.amount_mojo), 0n);
+    const sourcePh = parent.coin.puzzle_hash.toLowerCase().replace(/^0x/, '');
     out.push({
       wallet_id: wallet.id,
-      source_address: wallet.address,
-      source_puzzle_hash: wallet.puzzleHash,
+      source_puzzle_hash: sourcePh,
+      source_address: puzzleHashToAddress(sourcePh, 'mainnet'),
       parent_coin_name: parentName,
       spent_amount_mojo: toBigInt(parent.coin.amount).toString(),
       spent_amount_xch: mojoToXch(toBigInt(parent.coin.amount)),

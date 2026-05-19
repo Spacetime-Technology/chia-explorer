@@ -32,7 +32,7 @@ describe('prefarm tools', () => {
   it('list_prefarm_addresses returns the four wallets and the 21M genesis constant', async () => {
     const res = await client.callTool({ name: 'list_prefarm_addresses', arguments: {} });
     const body = parseToolText(res) as {
-      wallets: Array<{ id: string; pending: boolean }>;
+      wallets: Array<{ id: string; addresses: string[]; pending: boolean }>;
       destinations: unknown[];
       total_allocation_mojo: string;
       total_allocation_xch: string;
@@ -44,31 +44,15 @@ describe('prefarm tools', () => {
     expect(body.total_allocation_mojo).toBe(TOTAL_PREFARM_ALLOCATION_MOJO.toString());
     expect(body.total_allocation_xch).toBe(mojoToXch(TOTAL_PREFARM_ALLOCATION_MOJO));
     expect(body.wallets_configured + body.wallets_pending).toBe(4);
+    // Configured wallets must have at least one address.
+    for (const w of body.wallets.filter((w) => !w.pending)) {
+      expect(w.addresses.length).toBeGreaterThan(0);
+    }
   });
 
-  it('get_prefarm_status returns null balance fields for unpopulated wallets', async () => {
-    const res = await client.callTool({ name: 'get_prefarm_status', arguments: {} });
-    const body = parseToolText(res) as {
-      wallets: Array<{ id: string; pending: boolean; balance_mojo: string | null }>;
-      totals: { allocation_mojo: string; tracked_balance_mojo: string };
-      wallets_pending: number;
-    };
-    const pending = body.wallets.filter((w) => w.pending);
-    for (const w of pending) {
-      expect(w.balance_mojo).toBeNull();
-    }
-    expect(body.totals.allocation_mojo).toBe(TOTAL_PREFARM_ALLOCATION_MOJO.toString());
-    expect(body.wallets_pending).toBe(pending.length);
-  });
-
-  it('get_prefarm_status sums balances for populated wallets only', async () => {
-    const populated = PREFARM_WALLETS.filter((w) => w.puzzleHash !== null);
-    if (populated.length === 0) {
-      // No populated wallets: balance lookup should never be called.
-      await client.callTool({ name: 'get_prefarm_status', arguments: {} });
-      expect(mocks.get_coin_records_by_puzzle_hash).not.toHaveBeenCalled();
-      return;
-    }
+  it('get_prefarm_status sums balances across every puzzle hash of every configured wallet', async () => {
+    const populated = PREFARM_WALLETS.filter((w) => w.addresses.length > 0);
+    const totalPuzzleHashes = populated.reduce((acc, w) => acc + w.puzzleHashes.length, 0);
     mocks.get_coin_records_by_puzzle_hash.mockResolvedValue({
       coin_records: [
         {
@@ -86,18 +70,27 @@ describe('prefarm tools', () => {
     });
     const res = await client.callTool({ name: 'get_prefarm_status', arguments: {} });
     const body = parseToolText(res) as {
-      totals: { tracked_balance_mojo: string };
+      wallets: Array<{ id: string; pending: boolean; balance_mojo: string | null }>;
+      totals: {
+        allocation_mojo: string;
+        tracked_balance_mojo: string;
+        tracked_spent_pct: number | null;
+      };
+      wallets_configured: number;
     };
+    expect(body.wallets_configured).toBe(populated.length);
+    expect(body.totals.allocation_mojo).toBe(TOTAL_PREFARM_ALLOCATION_MOJO.toString());
+    // One coin per puzzle-hash query, 1 XCH each → total = totalPuzzleHashes XCH (in mojos).
     expect(BigInt(body.totals.tracked_balance_mojo)).toBe(
-      BigInt(populated.length) * 1_000_000_000_000n
+      BigInt(totalPuzzleHashes) * 1_000_000_000_000n
     );
+    if (populated.length === PREFARM_WALLETS.length) {
+      expect(body.totals.tracked_spent_pct).not.toBeNull();
+    }
   });
 
-  it('get_prefarm_spends returns an empty list when no wallets are populated', async () => {
-    const populated = PREFARM_WALLETS.filter((w) => w.puzzleHash !== null);
-    if (populated.length > 0) {
-      mocks.get_coin_records_by_puzzle_hash.mockResolvedValue({ coin_records: [] });
-    }
+  it('get_prefarm_spends returns an empty list when there are no spent coins', async () => {
+    mocks.get_coin_records_by_puzzle_hash.mockResolvedValue({ coin_records: [] });
     const res = await client.callTool({ name: 'get_prefarm_spends', arguments: { limit: 5 } });
     const body = parseToolText(res) as {
       spends: unknown[];

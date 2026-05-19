@@ -18,9 +18,9 @@ export function register(server: McpServer): void {
         label: w.label,
         region: w.region,
         temperature: w.temperature,
-        address: w.address,
-        puzzle_hash: w.puzzleHash,
-        pending: w.address === null,
+        addresses: w.addresses,
+        puzzle_hashes: w.puzzleHashes,
+        pending: w.addresses.length === 0,
       }));
       const destinations = KNOWN_DESTINATIONS.map((d) => ({
         address: d.address,

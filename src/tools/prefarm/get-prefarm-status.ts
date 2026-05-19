@@ -15,8 +15,8 @@ interface WalletStatus {
   label: string;
   region: PrefarmWallet['region'];
   temperature: PrefarmWallet['temperature'];
-  address: string | null;
-  puzzle_hash: string | null;
+  addresses: readonly string[];
+  puzzle_hashes: readonly string[];
   balance_mojo: string | null;
   balance_xch: string | null;
   unspent_coin_count: number | null;
@@ -29,8 +29,8 @@ async function statusForWallet(wallet: PrefarmWallet): Promise<WalletStatus> {
     label: wallet.label,
     region: wallet.region,
     temperature: wallet.temperature,
-    address: wallet.address,
-    puzzle_hash: wallet.puzzleHash,
+    addresses: wallet.addresses,
+    puzzle_hashes: wallet.puzzleHashes,
   };
   if (!isPopulated(wallet)) {
     return {
@@ -42,16 +42,22 @@ async function statusForWallet(wallet: PrefarmWallet): Promise<WalletStatus> {
     };
   }
   const agent = getAgent('mainnet');
-  const records = await fetchCoinRecordsByPuzzleHash(agent, wallet.puzzleHash, {
-    includeSpent: false,
-  });
+  const groups = await Promise.all(
+    wallet.puzzleHashes.map((ph) =>
+      fetchCoinRecordsByPuzzleHash(agent, ph, { includeSpent: false })
+    )
+  );
   let balance = 0n;
-  for (const r of records) balance += toBigInt(r.coin.amount);
+  let coinCount = 0;
+  for (const records of groups) {
+    coinCount += records.length;
+    for (const r of records) balance += toBigInt(r.coin.amount);
+  }
   return {
     ...base,
     balance_mojo: balance.toString(),
     balance_xch: mojoToXch(balance),
-    unspent_coin_count: records.length,
+    unspent_coin_count: coinCount,
     pending: false,
   };
 }

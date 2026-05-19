@@ -12,19 +12,20 @@ const { coinName } = await import('../src/chia/coin-name.js');
 const { puzzleHashToAddress } = await import('../src/chia/bech32.js');
 const { MOJOS_PER_XCH } = await import('../src/chia/amounts.js');
 const { getWalletSpends } = await import('../src/prefarm/spends.js');
+const { PREFARM_WALLETS, getWalletById } = await import('../src/prefarm/registry.js');
 
 type WalletShape = Awaited<ReturnType<typeof getWalletSpends>>[number];
 
 const WALLET_PH = '7faa3253bfddd1e0debb883ab8ac733c272b6e6c9e7e9d5c44e1d59ed1b3eb18';
 const UNKNOWN_PH = 'b'.repeat(64);
 
-const wallet = {
+const stubWallet = {
   id: 'us-cold' as const,
-  label: 'Strategic Reserve — US Cold',
+  label: 'Stub Wallet',
   region: 'us' as const,
   temperature: 'cold' as const,
-  address: puzzleHashToAddress(WALLET_PH, 'mainnet'),
-  puzzleHash: WALLET_PH,
+  addresses: [puzzleHashToAddress(WALLET_PH, 'mainnet')],
+  puzzleHashes: [WALLET_PH],
 };
 
 function makeRecord(
@@ -50,7 +51,7 @@ describe('getWalletSpends', () => {
 
   it('returns empty when the wallet is unpopulated', async () => {
     const agent = getAgent('mainnet');
-    const pending = { ...wallet, address: null, puzzleHash: null };
+    const pending = { ...stubWallet, addresses: [], puzzleHashes: [] };
     const out = await getWalletSpends(agent, pending);
     expect(out).toEqual([]);
     expect(mocks.get_coin_records_by_puzzle_hash).not.toHaveBeenCalled();
@@ -82,7 +83,7 @@ describe('getWalletSpends', () => {
     });
 
     const agent = getAgent('mainnet');
-    const out: WalletShape[] = await getWalletSpends(agent, wallet);
+    const out: WalletShape[] = await getWalletSpends(agent, stubWallet);
 
     expect(out).toHaveLength(2);
     expect(out[0]!.spent_height).toBe(60_000);
@@ -92,11 +93,53 @@ describe('getWalletSpends', () => {
     expect(out[0]!.outflow_xch).toBe('200');
   });
 
-  it('flags internal-rotation when a destination puzzle hash matches another prefarm wallet (skipped here since none are populated by default)', () => {
-    // Internal-rotation labelling depends on populated wallets in the registry.
-    // The unit-level behavior is tested via the unknown/labelled paths above;
-    // internal rotation will activate automatically once two or more wallets
-    // are populated in the registry.
-    expect(true).toBe(true);
+  it('skips own-wallet rotation children and flags cross-wallet rotation as internal-rotation', async () => {
+    // Use real us-cold + us-warm so lookupPrefarmWallet returns hits.
+    const usCold = getWalletById('us-cold');
+    const usWarm = getWalletById('us-warm');
+    expect(usCold && usWarm).toBeTruthy();
+    if (!usCold || !usWarm) return;
+
+    const sourcePh = usCold.puzzleHashes[0]!;
+    const ownPh = usCold.puzzleHashes[0]!; // landing on the same wallet — should be filtered out
+    const crossPh = usWarm.puzzleHashes[0]!; // landing on us-warm — should be tagged internal-rotation
+    const parent = '3'.repeat(64);
+    const spent = makeRecord(sourcePh, 500n * MOJOS_PER_XCH, parent, 70_000);
+    mocks.get_coin_records_by_puzzle_hash.mockResolvedValue({ coin_records: [spent] });
+    const parentName = coinName({
+      parent_coin_info: spent.coin.parent_coin_info,
+      puzzle_hash: spent.coin.puzzle_hash,
+      amount: spent.coin.amount,
+    });
+    mocks.get_coin_records_by_parent_ids.mockResolvedValue({
+      coin_records: [
+        makeRecord(ownPh, 1n * MOJOS_PER_XCH, parentName, 0), // own-wallet, filtered
+        makeRecord(crossPh, 499n * MOJOS_PER_XCH, parentName, 0), // cross-wallet rotation
+      ],
+    });
+
+    const agent = getAgent('mainnet');
+    const out = await getWalletSpends(agent, usCold);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.destinations).toHaveLength(1);
+    const dest = out[0]!.destinations[0]!;
+    expect(dest.category).toBe('internal-rotation');
+    expect(dest.internal_wallet_id).toBe('us-warm');
+    expect(out[0]!.outflow_mojo).toBe('0'); // internal rotation excluded from outflow
+  });
+
+  it('fans queries across every puzzle hash of a multi-address wallet', async () => {
+    const usWarm = getWalletById('us-warm');
+    expect(usWarm).toBeTruthy();
+    if (!usWarm) return;
+    expect(usWarm.puzzleHashes.length).toBeGreaterThan(1);
+    mocks.get_coin_records_by_puzzle_hash.mockResolvedValue({ coin_records: [] });
+    await getWalletSpends(getAgent('mainnet'), usWarm);
+    expect(mocks.get_coin_records_by_puzzle_hash).toHaveBeenCalledTimes(usWarm.puzzleHashes.length);
+  });
+
+  it('PREFARM_WALLETS is now fully populated (no pending wallets)', () => {
+    const pending = PREFARM_WALLETS.filter((w) => w.addresses.length === 0);
+    expect(pending).toEqual([]);
   });
 });
