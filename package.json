@@ -1,6 +1,6 @@
 {
   "name": "chia-explorer",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "MCP server that answers questions about the Chia blockchain via the public coinset.org API",
   "mcpName": "io.github.Spacetime-Technology/chia-explorer",
   "type": "module",
