@@ -29,6 +29,10 @@ const EXPECTED_TOOLS = [
   'get_mempool',
   'is_in_mempool',
   'estimate_fee',
+  'list_chips',
+  'get_chip',
+  'list_chip_drafts',
+  'search_chips',
 ];
 
 describe('tool registration', () => {

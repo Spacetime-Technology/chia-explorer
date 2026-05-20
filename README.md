@@ -220,12 +220,17 @@ Skills are read-only and idempotent, persist state between runs, and accept stru
 | `get_prefarm_status` | Live per-wallet balances of the 21M XCH strategic reserve, plus total spent |
 | `get_prefarm_spends` | Outflows from the reserve, with destinations labelled when known (partners / market makers / exchanges). Filter by wallet, height, or count |
 | `list_prefarm_addresses` | The hardcoded registry: custody wallets and known destination addresses. No network call |
+| `list_chips` | Merged Chia Improvement Proposals on `main`, parsed front matter + abstract. Filter by status or category |
+| `get_chip` | One CHIP by number. Returns the merged version (if any), any open PR drafts proposing the same number, and optionally the full markdown |
+| `list_chip_drafts` | Open PRs against `Chia-Network/chips` that add or modify a CHIP, with parsed front matter and PR context (author, reviewers, draft flag) |
+| `search_chips` | Keyword search across merged CHIPs and open PR drafts (title, description, abstract, authors) |
 
-Blockchain tools take an optional `network: "mainnet" | "testnet11"` (default `mainnet`). The price tools take no network arg. The prefarm tools are mainnet only.
+Blockchain tools take an optional `network: "mainnet" | "testnet11"` (default `mainnet`). The price and CHIPs tools take no network arg. The prefarm tools are mainnet only.
 
 ## Optional config
 
 - `COINGECKO_API_KEY` — if set, sent as `x-cg-demo-api-key` to lift the free-tier rate limit. The price tools work without it.
+- `GITHUB_TOKEN` — if set, sent as `Authorization: Bearer …` to the GitHub API. Lifts the unauthenticated 60/hr limit to 5000/hr for CHIPs listings. Raw file fetches don't need it. The CHIPs tools work without it.
 
 ## Prompts
 
