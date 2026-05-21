@@ -19,6 +19,26 @@ const SPEND_TYPES = [
   'create_new_did_wallet',
 ] as const;
 
+// Approximate CLVM cost of one standard XCH spend.
+const DEFAULT_SPEND_COST = 11_000_000;
+
+// coinset's get_fee_estimate accepts only `cost` + `target_times` (it rejects `spend_type`),
+// so a spend_type hint is translated into an approximate cost here. These are rough multiples
+// of one standard spend, meant only to bias the estimate — pass an explicit `cost` for precision.
+const SPEND_TYPE_COST: Record<(typeof SPEND_TYPES)[number], number> = {
+  send_xch_transaction: DEFAULT_SPEND_COST,
+  cat_spend: DEFAULT_SPEND_COST * 3,
+  // chia.net's Jan-2024 fees post puts offer-take cost at 80-150M; *4 (44M)
+  // under-shoots by ~2-3x, which would translate directly to an underestimated fee.
+  take_offer: DEFAULT_SPEND_COST * 9,
+  cancel_offer: DEFAULT_SPEND_COST * 2,
+  nft_set_nft_did: DEFAULT_SPEND_COST * 5,
+  nft_transfer_nft: DEFAULT_SPEND_COST * 5,
+  create_new_pool_wallet: DEFAULT_SPEND_COST * 5,
+  pw_absorb_rewards: DEFAULT_SPEND_COST * 4,
+  create_new_did_wallet: DEFAULT_SPEND_COST * 4,
+};
+
 export function register(server: McpServer): void {
   server.tool(
     'estimate_fee',
@@ -51,11 +71,18 @@ export function register(server: McpServer): void {
     async ({ target_times, cost, spend_type, spend_count, network }) => {
       try {
         const agent = getAgent(network as Network);
-        const payload: Parameters<typeof get_fee_estimate>[1] = { target_times };
-        if (cost !== undefined) payload.cost = cost;
-        if (spend_type !== undefined) payload.spend_type = spend_type;
-        if (spend_count !== undefined) payload.spend_count = spend_count;
-        const res = await get_fee_estimate(agent, payload);
+        // coinset's get_fee_estimate accepts only `cost` + `target_times`. Resolve to a cost:
+        // an explicit `cost`, else the spend_type's approximate cost (or a standard spend)
+        // scaled by spend_count. This avoids the "missing field cost" / "unknown field
+        // spend_type" errors coinset returns for the raw payload.
+        let effectiveCost: number;
+        if (cost !== undefined) {
+          effectiveCost = cost;
+        } else {
+          const perSpend = spend_type ? SPEND_TYPE_COST[spend_type] : DEFAULT_SPEND_COST;
+          effectiveCost = perSpend * (spend_count ?? 1);
+        }
+        const res = await get_fee_estimate(agent, { target_times, cost: effectiveCost });
 
         const estimates_mojo = (res.estimates ?? []).map((e) => toBigInt(e).toString());
         const estimates_xch = estimates_mojo.map((m) => mojoToXch(m));

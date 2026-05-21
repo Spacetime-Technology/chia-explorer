@@ -162,7 +162,7 @@ describe('mempool tools (mocked RPC)', () => {
   });
 
   describe('estimate_fee', () => {
-    it('passes default target_times [60,300,900] when none supplied', async () => {
+    it('defaults target_times and a cost when none supplied', async () => {
       mocks.get_fee_estimate.mockResolvedValue({
         estimates: [0, 1000, 5000],
         target_times: [60, 300, 900],
@@ -181,12 +181,15 @@ describe('mempool tools (mocked RPC)', () => {
       expect(body.target_times).toEqual([60, 300, 900]);
       expect(body.estimates_mojo).toEqual(['0', '1000', '5000']);
       expect(body.estimates_xch[0]).toBe('0');
+      // coinset requires `cost`; with no args the tool defaults one (~ a standard XCH
+      // send) so a bare call doesn't error with "missing field cost".
       expect(mocks.get_fee_estimate).toHaveBeenCalledWith(expect.anything(), {
         target_times: [60, 300, 900],
+        cost: 11_000_000,
       });
     });
 
-    it('forwards spend_type, spend_count and cost when supplied', async () => {
+    it('uses an explicit cost as-is (no spend_type reaches coinset)', async () => {
       mocks.get_fee_estimate.mockResolvedValue({
         estimates: [0],
         target_times: [60],
@@ -198,18 +201,32 @@ describe('mempool tools (mocked RPC)', () => {
       });
       await client.callTool({
         name: 'estimate_fee',
-        arguments: {
-          target_times: [60],
-          cost: 1_000_000,
-          spend_type: 'take_offer',
-          spend_count: 2,
-        },
+        arguments: { target_times: [60], cost: 1_000_000 },
       });
+      // Only `cost` + `target_times` reach the RPC: coinset rejects spend_type/spend_count.
       expect(mocks.get_fee_estimate).toHaveBeenCalledWith(expect.anything(), {
         target_times: [60],
         cost: 1_000_000,
-        spend_type: 'take_offer',
-        spend_count: 2,
+      });
+    });
+
+    it('scales the default cost by spend_count when no explicit cost is given', async () => {
+      mocks.get_fee_estimate.mockResolvedValue({
+        estimates: [0],
+        target_times: [60],
+        current_fee_rate: 0,
+        mempool_size: 0,
+        mempool_fees: 0,
+        full_node_synced: true,
+        peak_height: 1,
+      });
+      await client.callTool({
+        name: 'estimate_fee',
+        arguments: { target_times: [60], spend_count: 2 },
+      });
+      expect(mocks.get_fee_estimate).toHaveBeenCalledWith(expect.anything(), {
+        target_times: [60],
+        cost: 22_000_000,
       });
     });
 
@@ -227,6 +244,27 @@ describe('mempool tools (mocked RPC)', () => {
         arguments: { target_times: [-1] },
       })) as { isError?: boolean };
       expect(res.isError).toBe(true);
+    });
+
+    it('maps spend_type to an approximate cost', async () => {
+      mocks.get_fee_estimate.mockResolvedValue({
+        estimates: [0],
+        target_times: [60],
+        current_fee_rate: 0,
+        mempool_size: 0,
+        mempool_fees: 0,
+        full_node_synced: true,
+        peak_height: 1,
+      });
+      // cat_spend ~ 3x a standard spend (11_000_000); only the resolved cost reaches coinset.
+      await client.callTool({
+        name: 'estimate_fee',
+        arguments: { target_times: [60], spend_type: 'cat_spend' },
+      });
+      expect(mocks.get_fee_estimate).toHaveBeenCalledWith(expect.anything(), {
+        target_times: [60],
+        cost: 33_000_000,
+      });
     });
 
     it('rejects an unknown spend_type', async () => {
