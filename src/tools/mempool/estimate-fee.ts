@@ -28,7 +28,9 @@ const DEFAULT_SPEND_COST = 11_000_000;
 const SPEND_TYPE_COST: Record<(typeof SPEND_TYPES)[number], number> = {
   send_xch_transaction: DEFAULT_SPEND_COST,
   cat_spend: DEFAULT_SPEND_COST * 3,
-  take_offer: DEFAULT_SPEND_COST * 4,
+  // chia.net's Jan-2024 fees post puts offer-take cost at 80-150M; *4 (44M)
+  // under-shoots by ~2-3x, which would translate directly to an underestimated fee.
+  take_offer: DEFAULT_SPEND_COST * 9,
   cancel_offer: DEFAULT_SPEND_COST * 2,
   nft_set_nft_did: DEFAULT_SPEND_COST * 5,
   nft_transfer_nft: DEFAULT_SPEND_COST * 5,
