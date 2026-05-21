@@ -224,8 +224,9 @@ Skills are read-only and idempotent, persist state between runs, and accept stru
 | `get_chip` | One CHIP by number. Returns the merged version (if any), any open PR drafts proposing the same number, and optionally the full markdown |
 | `list_chip_drafts` | Open PRs against `Chia-Network/chips` that add or modify a CHIP, with parsed front matter and PR context (author, reviewers, draft flag) |
 | `search_chips` | Keyword search across merged CHIPs and open PR drafts (title, description, abstract, authors) |
+| `list_forks` | Every Chia consensus fork (hard and soft) with status (Activated, Planned, …), activation block, build, and a link to the purpose (CHIP, post-mortem, blog post). Sourced from the canonical docs page at docs.chia.net, with the source's `last_updated` date included so callers can judge freshness |
 
-Blockchain tools take an optional `network: "mainnet" | "testnet11"` (default `mainnet`). The price and CHIPs tools take no network arg. The prefarm tools are mainnet only.
+Blockchain tools take an optional `network: "mainnet" | "testnet11"` (default `mainnet`). The price, CHIPs, and forks tools take no network arg. The prefarm tools are mainnet only.
 
 ## Optional config
 

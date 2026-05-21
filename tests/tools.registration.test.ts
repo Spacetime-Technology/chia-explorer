@@ -33,6 +33,7 @@ const EXPECTED_TOOLS = [
   'get_chip',
   'list_chip_drafts',
   'search_chips',
+  'list_forks',
 ];
 
 describe('tool registration', () => {

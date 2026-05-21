@@ -39,6 +39,8 @@ import { register as registerGetChip } from './tools/chips/get-chip.js';
 import { register as registerListChipDrafts } from './tools/chips/list-chip-drafts.js';
 import { register as registerSearchChips } from './tools/chips/search-chips.js';
 
+import { register as registerListForks } from './tools/forks/list-forks.js';
+
 import { register as registerNetworkStatusPrompt } from './prompts/network-status.js';
 import { register as registerAddressSummaryPrompt } from './prompts/address-summary.js';
 import { register as registerBlockSummaryPrompt } from './prompts/block-summary.js';
@@ -51,11 +53,12 @@ export function createServer(): McpServer {
       instructions:
         'chia-explorer answers questions about the Chia blockchain via the public coinset.org API, ' +
         'plus XCH spot price and fiat conversion via the public CoinGecko API, ' +
-        'plus Chia Improvement Proposals (CHIPs) read directly from the Chia-Network/chips GitHub repo (merged on main and open PR drafts). ' +
+        'plus Chia Improvement Proposals (CHIPs) read directly from the Chia-Network/chips GitHub repo (merged on main and open PR drafts), ' +
+        'plus Chia consensus fork history (hard and soft forks, with status and activation block) read from the Chia-Network/chia-docs GitHub repo. ' +
         'Read-only: no signing, no key material, no push_tx. ' +
         "Blockchain tools accept an optional `network: 'mainnet' | 'testnet11'` argument; mainnet is the default. " +
         'When an address is provided, the network is auto-detected from the prefix (xch / txch). ' +
-        'Price and CHIPs tools take no network argument. ' +
+        'Price, CHIPs, and forks tools take no network argument. ' +
         'An optional GITHUB_TOKEN env var lifts the unauthenticated GitHub rate limit on CHIPs listings.',
     }
   );
@@ -97,6 +100,8 @@ export function createServer(): McpServer {
   registerGetChip(server);
   registerListChipDrafts(server);
   registerSearchChips(server);
+
+  registerListForks(server);
 
   registerNetworkStatusPrompt(server);
   registerAddressSummaryPrompt(server);
