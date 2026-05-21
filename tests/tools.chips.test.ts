@@ -39,6 +39,26 @@ Created       | 2026-04-01
 A scheme for stealth payments.
 `;
 
+const README_FIXTURE = `# CHia Improvement Proposals (CHIPs)
+
+## CHIP list
+
+### Living
+* [1 - CHia Improvement Proposal (CHIP) process](/CHIPs/chip-0001.md)
+
+### Draft
+* [57 - Silent Payments](https://github.com/Chia-Network/chips/pull/198)
+
+### Final
+* [42 - Protected Single Sided Offers](/CHIPs/chip-0042.md)
+`;
+
+const README_ONLY_42 = `# CHia Improvement Proposals (CHIPs)
+
+### Final
+* [42 - Protected Single Sided Offers](/CHIPs/chip-0042.md)
+`;
+
 function textResponse(body: string, status = 200): Response {
   return new Response(body, { status, statusText: status === 200 ? 'OK' : 'Not Found' });
 }
@@ -92,32 +112,65 @@ describe('chips tools (mocked fetch)', () => {
     vi.unstubAllEnvs();
   });
 
-  it('list_chips returns parsed CHIP summaries from main', async () => {
+  it('list_chips returns README-driven entries including Final files and Draft PRs', async () => {
     setupFetch({
-      'api.github.com/repos/Chia-Network/chips/contents/CHIPs': () =>
+      'raw.githubusercontent.com/Chia-Network/chips/main/README.md': () =>
+        textResponse(README_FIXTURE),
+      'api.github.com/repos/Chia-Network/chips/pulls?state=open': () =>
         jsonResponse([
-          { name: 'chip-0042.md', path: 'CHIPs/chip-0042.md', type: 'file' },
-          { name: 'README.md', path: 'CHIPs/README.md', type: 'file' },
+          {
+            number: 198,
+            title: 'CHIP-0057: Silent Payments',
+            html_url: 'https://github.com/Chia-Network/chips/pull/198',
+            state: 'open',
+            draft: false,
+            created_at: '2026-05-01T00:00:00Z',
+            updated_at: '2026-05-14T00:00:00Z',
+            user: { login: 'kdc2000' },
+            requested_reviewers: [{ login: 'danieljperry' }],
+            head: { sha: 'abc123', ref: 'silent-payments' },
+            base: { ref: 'main' },
+          },
         ]),
+      'api.github.com/repos/Chia-Network/chips/pulls/198/files': () =>
+        jsonResponse([{ filename: 'CHIPs/chip-0057.md', status: 'added' }]),
+      'raw.githubusercontent.com/Chia-Network/chips/abc123/CHIPs/chip-0057.md': () =>
+        textResponse(CHIP_57),
+      'raw.githubusercontent.com/Chia-Network/chips/main/CHIPs/chip-0001.md': () =>
+        textResponse(''),
       'raw.githubusercontent.com/Chia-Network/chips/main/CHIPs/chip-0042.md': () =>
         textResponse(CHIP_42),
     });
     const res = await client.callTool({ name: 'list_chips', arguments: {} });
     const body = parseToolText(res) as {
       count: number;
-      chips: Array<{ number: number; title: string; status: string; abstract: string }>;
+      chips: Array<{
+        number: number;
+        title: string;
+        status: string;
+        kind: string;
+        abstract: string | null;
+        pr: { number: number } | null;
+      }>;
     };
-    expect(body.count).toBe(1);
-    expect(body.chips[0]!.number).toBe(42);
-    expect(body.chips[0]!.title).toBe('Protected Single Sided Offers');
-    expect(body.chips[0]!.status).toBe('Final');
-    expect(body.chips[0]!.abstract).toContain('Single sided offers');
+    expect(body.count).toBe(3);
+    const chip42 = body.chips.find((c) => c.number === 42)!;
+    expect(chip42.status).toBe('Final');
+    expect(chip42.kind).toBe('file');
+    expect(chip42.title).toBe('Protected Single Sided Offers');
+    expect(chip42.abstract).toContain('Single sided offers');
+    const chip57 = body.chips.find((c) => c.number === 57)!;
+    expect(chip57.status).toBe('Draft');
+    expect(chip57.kind).toBe('pr');
+    expect(chip57.pr?.number).toBe(198);
+    expect(chip57.abstract).toContain('stealth payments');
   });
 
-  it('list_chips applies the status filter', async () => {
+  it('list_chips applies the status filter against the README status', async () => {
     setupFetch({
-      'api.github.com/repos/Chia-Network/chips/contents/CHIPs': () =>
-        jsonResponse([{ name: 'chip-0042.md', path: 'CHIPs/chip-0042.md', type: 'file' }]),
+      'raw.githubusercontent.com/Chia-Network/chips/main/README.md': () =>
+        textResponse(README_ONLY_42),
+      'api.github.com/repos/Chia-Network/chips/pulls?state=open': () => jsonResponse([]),
       'raw.githubusercontent.com/Chia-Network/chips/main/CHIPs/chip-0042.md': () =>
         textResponse(CHIP_42),
     });
@@ -244,8 +297,8 @@ describe('chips tools (mocked fetch)', () => {
 
   it('search_chips matches across title and abstract', async () => {
     setupFetch({
-      'api.github.com/repos/Chia-Network/chips/contents/CHIPs': () =>
-        jsonResponse([{ name: 'chip-0042.md', path: 'CHIPs/chip-0042.md', type: 'file' }]),
+      'raw.githubusercontent.com/Chia-Network/chips/main/README.md': () =>
+        textResponse(README_ONLY_42),
       'raw.githubusercontent.com/Chia-Network/chips/main/CHIPs/chip-0042.md': () =>
         textResponse(CHIP_42),
       'api.github.com/repos/Chia-Network/chips/pulls?state=open': () => jsonResponse([]),
@@ -265,6 +318,8 @@ describe('chips tools (mocked fetch)', () => {
 
   it('search_chips respects source=draft', async () => {
     setupFetch({
+      'raw.githubusercontent.com/Chia-Network/chips/main/README.md': () =>
+        textResponse(README_FIXTURE),
       'api.github.com/repos/Chia-Network/chips/pulls?state=open': () =>
         jsonResponse([
           {
@@ -285,6 +340,10 @@ describe('chips tools (mocked fetch)', () => {
         jsonResponse([{ filename: 'CHIPs/chip-0057.md', status: 'added' }]),
       'raw.githubusercontent.com/Chia-Network/chips/abc123/CHIPs/chip-0057.md': () =>
         textResponse(CHIP_57),
+      'raw.githubusercontent.com/Chia-Network/chips/main/CHIPs/chip-0001.md': () =>
+        textResponse(''),
+      'raw.githubusercontent.com/Chia-Network/chips/main/CHIPs/chip-0042.md': () =>
+        textResponse(CHIP_42),
     });
     const res = await client.callTool({
       name: 'search_chips',
@@ -298,17 +357,24 @@ describe('chips tools (mocked fetch)', () => {
   it('sends GITHUB_TOKEN as Authorization Bearer when set', async () => {
     vi.stubEnv('GITHUB_TOKEN', 'ghp_test');
     const mock = setupFetch({
-      'api.github.com/repos/Chia-Network/chips/contents/CHIPs': () => jsonResponse([]),
+      'raw.githubusercontent.com/Chia-Network/chips/main/README.md': () =>
+        textResponse(README_ONLY_42),
+      'api.github.com/repos/Chia-Network/chips/pulls?state=open': () => jsonResponse([]),
+      'raw.githubusercontent.com/Chia-Network/chips/main/CHIPs/chip-0042.md': () =>
+        textResponse(CHIP_42),
     });
     await client.callTool({ name: 'list_chips', arguments: {} });
-    const init = mock.mock.calls[0]![1];
-    const headers = (init?.headers ?? {}) as Record<string, string>;
+    const apiCall = mock.mock.calls.find((c) => asUrl(c[0]).includes('api.github.com'));
+    expect(apiCall).toBeDefined();
+    const headers = (apiCall![1]?.headers ?? {}) as Record<string, string>;
     expect(headers['authorization']).toBe('Bearer ghp_test');
   });
 
   it('surfaces GitHub rate-limit responses with a helpful message', async () => {
     setupFetch({
-      'api.github.com/repos/Chia-Network/chips/contents/CHIPs': () =>
+      'raw.githubusercontent.com/Chia-Network/chips/main/README.md': () =>
+        textResponse(README_ONLY_42),
+      'api.github.com/repos/Chia-Network/chips/pulls?state=open': () =>
         new Response('API rate limit exceeded', {
           status: 403,
           statusText: 'Forbidden',

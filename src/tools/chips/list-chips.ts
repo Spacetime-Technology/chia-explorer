@@ -1,19 +1,19 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { listMergedChips } from '../../chips/index.js';
+import { listChipsFromReadme } from '../../chips/index.js';
 import { chipCategoryFilterSchema, chipStatusFilterSchema } from '../../schemas/chips.js';
 import { errorText, jsonText } from '../shared/response.js';
 
 export function register(server: McpServer): void {
   server.tool(
     'list_chips',
-    'List Chia Improvement Proposals (CHIPs) merged on the main branch of Chia-Network/chips. Returns parsed metadata (number, title, status, category, authors, abstract, dates) for every CHIP. Optional filters: status, category. For in-progress CHIPs in open PRs use list_chip_drafts.',
+    'List all Chia Improvement Proposals (CHIPs) from the canonical index in the Chia-Network/chips repo README, across every status (Living, Draft, Review, Final, Stagnant, Withdrawn, Obsolete, Grandfathered, Under Consideration). Draft and Review entries point to open PRs; Final entries point to merged files on main. Status comes from the README (authoritative); category, authors, and abstract are enriched from front matter when a CHIP file is available. Use this to find the most recent CHIPs — they are typically in Draft. Optional filters: status, category.',
     {
       status: chipStatusFilterSchema,
       category: chipCategoryFilterSchema,
     },
     async ({ status, category }) => {
       try {
-        const all = await listMergedChips();
+        const all = await listChipsFromReadme();
         const statusLc = status?.toLowerCase();
         const categoryLc = category?.toLowerCase();
         const filtered = all.filter((c) => {
@@ -24,7 +24,7 @@ export function register(server: McpServer): void {
         return jsonText({
           source: 'github',
           repo: 'Chia-Network/chips',
-          ref: 'main',
+          index: 'README.md',
           count: filtered.length,
           chips: filtered,
         });

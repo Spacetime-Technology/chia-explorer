@@ -5,7 +5,7 @@ import { errorText, jsonText } from '../shared/response.js';
 export function register(server: McpServer): void {
   server.tool(
     'list_chip_drafts',
-    'List open pull requests against Chia-Network/chips that add or modify a CHIP file. Each entry includes parsed front matter from the proposed file plus PR context (number, url, author, requested reviewers, draft flag, updated_at) and a modifies_existing flag for amendments. PRs that do not touch a CHIPs/chip-*.md file are filtered out.',
+    'List the live state of every open pull request against Chia-Network/chips that adds or modifies a CHIP file. Use this for PR review context (author, requested reviewers, draft flag, updated_at) and the modifies_existing flag for amendments. PRs that do not touch a CHIPs/chip-*.md file are filtered out. For the canonical CHIP index across all statuses (including Draft proposals), use list_chips.',
     {},
     async () => {
       try {

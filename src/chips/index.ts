@@ -8,19 +8,12 @@ import {
   type AuthorRef,
   type ChipFrontMatter,
 } from './parser.js';
+import { getChipReadmeIndex, type ChipReadmeEntry } from './readme-index.js';
 
 const REPO = 'Chia-Network/chips';
 const DEFAULT_REF = 'main';
-const CHIPS_DIR = 'CHIPs';
-const LISTING_TTL_MS = 5 * 60_000;
 const CONTENT_TTL_MS = 10 * 60_000;
 const PR_LIST_TTL_MS = 2 * 60_000;
-
-interface ContentsEntry {
-  name: string;
-  path: string;
-  type: 'file' | 'dir' | 'symlink' | 'submodule';
-}
 
 interface PullsEntry {
   number: number;
@@ -60,7 +53,7 @@ export interface ChipSummary {
   replaces: string | null;
   superseded_by: string | null;
   source_url: string;
-  filename: string;
+  filename: string | null;
 }
 
 export interface MergedChip extends ChipSummary {
@@ -75,6 +68,12 @@ export interface DraftChip extends ChipSummary {
   pr: PrContext;
   modifies_existing: boolean;
   body?: string;
+}
+
+export interface ChipIndexEntry extends ChipSummary {
+  kind: 'file' | 'pr' | 'external';
+  pr: PrContext | null;
+  ref: string | null;
 }
 
 export interface PrContext {
@@ -115,44 +114,15 @@ function summarize(fm: ChipFrontMatter, body: string, ref: string, filename: str
   };
 }
 
-async function listChipFilenames(): Promise<string[]> {
-  return getCached(
-    `chips:contents:${DEFAULT_REF}`,
-    async () => {
-      const entries = await githubApi<ContentsEntry[]>(
-        `/repos/${REPO}/contents/${CHIPS_DIR}?ref=${DEFAULT_REF}`
-      );
-      return entries
-        .filter((e) => e.type === 'file' && /^chip-\d{1,5}\.md$/i.test(e.name))
-        .map((e) => e.path)
-        .sort();
-    },
-    LISTING_TTL_MS
-  );
-}
-
 async function fetchChipFile(ref: string, path: string): Promise<string> {
   return getCached(`chips:raw:${ref}:${path}`, () => fetchRawFile(REPO, ref, path), CONTENT_TTL_MS);
-}
-
-export async function listMergedChips(): Promise<ChipSummary[]> {
-  const paths = await listChipFilenames();
-  const summaries = await Promise.all(
-    paths.map(async (path) => {
-      const body = await fetchChipFile(DEFAULT_REF, path);
-      const fm = parseChipFrontMatter(body);
-      return summarize(fm, body, DEFAULT_REF, path);
-    })
-  );
-  summaries.sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
-  return summaries;
 }
 
 export async function getMergedChip(
   number: number,
   options: { includeBody?: boolean } = {}
 ): Promise<MergedChip | null> {
-  const filename = `${CHIPS_DIR}/${buildChipFileName(number)}`;
+  const filename = `CHIPs/${buildChipFileName(number)}`;
   try {
     const body = await fetchChipFile(DEFAULT_REF, filename);
     const fm = parseChipFrontMatter(body);
@@ -285,6 +255,105 @@ export async function findChipByNumber(
   return { merged, drafts };
 }
 
+function sparseEntry(idx: ChipReadmeEntry): ChipIndexEntry {
+  return {
+    number: idx.number,
+    title: idx.title,
+    status: idx.status,
+    category: null,
+    sub_category: null,
+    type: null,
+    authors: [],
+    editors: [],
+    description: null,
+    abstract: null,
+    created: null,
+    updated: null,
+    comments_uri: null,
+    requires: null,
+    replaces: null,
+    superseded_by: null,
+    source_url: idx.url,
+    filename: idx.filename,
+    kind: idx.kind,
+    pr: null,
+    ref: null,
+  };
+}
+
+async function buildIndexEntry(
+  idx: ChipReadmeEntry,
+  openPrs: Map<number, PullsEntry>
+): Promise<ChipIndexEntry> {
+  if (idx.kind === 'file' && idx.filename) {
+    try {
+      const body = await fetchChipFile(DEFAULT_REF, idx.filename);
+      const fm = parseChipFrontMatter(body);
+      const summary = summarize(fm, body, DEFAULT_REF, idx.filename);
+      return {
+        ...summary,
+        number: idx.number ?? summary.number,
+        title: summary.title ?? idx.title,
+        status: idx.status,
+        source_url: idx.url,
+        kind: 'file',
+        pr: null,
+        ref: DEFAULT_REF,
+      };
+    } catch (err) {
+      if (err instanceof FileNotFoundError) return sparseEntry(idx);
+      throw err;
+    }
+  }
+  if (idx.kind === 'pr' && idx.prNumber != null) {
+    const pr = openPrs.get(idx.prNumber);
+    if (pr) {
+      const files = await listPrChipFiles(pr.number).catch(() => [] as PullFileEntry[]);
+      const chipFiles = files.filter(
+        (f) => f.status !== 'removed' && extractChipPathInfo(f.filename)
+      );
+      let chipFile: PullFileEntry | undefined;
+      if (idx.number != null) {
+        const target = buildChipFileName(idx.number);
+        chipFile = chipFiles.find((f) => f.filename.toLowerCase().endsWith(target.toLowerCase()));
+      }
+      if (!chipFile) chipFile = chipFiles[0];
+      if (chipFile) {
+        const body = await fetchChipFile(pr.head.sha, chipFile.filename).catch(() => null);
+        if (body) {
+          const fm = parseChipFrontMatter(body);
+          const summary = summarize(fm, body, pr.head.sha, chipFile.filename);
+          return {
+            ...summary,
+            number: idx.number ?? summary.number,
+            title: summary.title ?? idx.title,
+            status: idx.status,
+            source_url: idx.url,
+            kind: 'pr',
+            pr: prContext(pr),
+            ref: pr.head.sha,
+          };
+        }
+      }
+    }
+    return sparseEntry(idx);
+  }
+  return sparseEntry(idx);
+}
+
+export async function listChipsFromReadme(): Promise<ChipIndexEntry[]> {
+  const [index, openPrsList] = await Promise.all([getChipReadmeIndex(), listOpenChipPrs()]);
+  const openPrs = new Map(openPrsList.map((pr) => [pr.number, pr]));
+  const entries = await Promise.all(index.map((idx) => buildIndexEntry(idx, openPrs)));
+  entries.sort((a, b) => {
+    if (a.number == null && b.number == null) return 0;
+    if (a.number == null) return 1;
+    if (b.number == null) return -1;
+    return a.number - b.number;
+  });
+  return entries;
+}
+
 export interface SearchOptions {
   status?: string;
   source?: 'merged' | 'draft' | 'both';
@@ -302,30 +371,30 @@ function matchesQuery(s: ChipSummary, q: string): boolean {
   return haystacks.some((h) => h.toLowerCase().includes(needle));
 }
 
+function kindToSource(kind: ChipIndexEntry['kind']): 'merged' | 'draft' {
+  return kind === 'pr' ? 'draft' : 'merged';
+}
+
+export interface SearchMatch extends ChipIndexEntry {
+  source: 'merged' | 'draft';
+}
+
 export async function searchChips(
   query: string,
   options: SearchOptions = {}
-): Promise<Array<MergedChip | DraftChip>> {
+): Promise<SearchMatch[]> {
   const source = options.source ?? 'both';
   const limit = options.limit ?? 20;
   const statusFilter = options.status?.toLowerCase();
 
-  const pool: Array<MergedChip | DraftChip> = [];
-  if (source === 'merged' || source === 'both') {
-    const merged = await listMergedChips();
-    for (const m of merged) {
-      pool.push({ ...m, source: 'merged' as const, ref: 'main' as const });
-    }
-  }
-  if (source === 'draft' || source === 'both') {
-    const drafts = await listChipDrafts();
-    pool.push(...drafts);
-  }
-
-  const filtered = pool.filter((c) => {
-    if (statusFilter && (c.status?.toLowerCase() ?? '') !== statusFilter) return false;
-    return matchesQuery(c, query);
-  });
+  const entries = await listChipsFromReadme();
+  const filtered = entries
+    .map((e): SearchMatch => ({ ...e, source: kindToSource(e.kind) }))
+    .filter((e) => {
+      if (source !== 'both' && e.source !== source) return false;
+      if (statusFilter && (e.status?.toLowerCase() ?? '') !== statusFilter) return false;
+      return matchesQuery(e, query);
+    });
 
   return filtered.slice(0, limit);
 }
